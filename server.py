@@ -1,49 +1,21 @@
 """
-FastMCP-compatible entry point for dbt-mcp
+Pure FastMCP server to avoid asyncio conflicts with dbt-mcp
 """
-from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from mcp.server.fastmcp import FastMCP
 
-@asynccontextmanager
-async def simple_lifespan(server) -> AsyncIterator[None]:
-    """Simple lifespan without complex tool registration"""
-    try:
-        yield
-    finally:
-        pass
+# Create a pure FastMCP server without any dbt-mcp imports
+mcp = FastMCP("dbt-mcp-pure")
 
-# Import only at the very end to minimize asyncio conflicts
-try:
-    from dbt_mcp.mcp.server import DbtMCP
-    from dbt_mcp.tracking.tracking import UsageTracker
+@mcp.tool()
+def test_connection() -> str:
+    """Test that the server is running"""
+    return "dbt-mcp server is running in pure FastMCP mode"
 
-    class MinimalConfig:
-        """Minimal config for initialization"""
-        def __init__(self):
-            self.semantic_layer_config_provider = None
-            self.discovery_config_provider = None
-            self.dbt_cli_config = None
-            self.dbt_codegen_config = None
-            self.admin_api_config_provider = None
-            self.sql_config_provider = None
-            self.disable_tools = []
-            self.tracking_config = None
-
-    # Create DbtMCP instance with minimal setup
-    mcp = DbtMCP(
-        config=MinimalConfig(),
-        usage_tracker=UsageTracker(),
-        name="dbt",
-        lifespan=simple_lifespan,
-    )
-except Exception as e:
-    print(f"Error creating dbt-mcp server: {e}")
-    # Create a minimal FastMCP server as fallback
-    from mcp.server.fastmcp import FastMCP
-
-    mcp = FastMCP("dbt-fallback")
-
-    @mcp.tool()
-    def test_tool() -> str:
-        """Test tool to verify server is working"""
-        return "dbt-mcp server is running in fallback mode"
+@mcp.tool()
+def server_info() -> dict:
+    """Get server information"""
+    return {
+        "server_type": "pure-fastmcp",
+        "status": "running",
+        "message": "This is a minimal FastMCP server without dbt-mcp imports to avoid asyncio conflicts"
+    }
